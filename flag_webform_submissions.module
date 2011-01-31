@@ -1,0 +1,184 @@
+<?php
+// $Id: flag_terms.module,v 1.2 2009/11/19 13:09:02 tayzlor Exp $
+/**
+ * @file
+ * Flag Terms.
+ * Written by Graham Taylor.
+ */
+
+module_load_include('inc', 'flag_webform_submissions', 'flag_webform_submissions');
+
+/**
+ * Implementation of hook_flag_definitions().
+ */
+
+function flag_webform_submissions_menu_alter(&$items) {
+  $items['node/%webform_menu/webform-results'] = array(
+    'title' => 'Results',
+    'page callback' => 'flag_webform_submissions_webform_results_submissions',
+    'page arguments' => array(1, FALSE, '50'),
+    'access callback' => 'webform_results_access',
+    'access arguments' => array(1),
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK,
+  );
+}
+
+/**
+ * Implementation of hook_flag_definitions().
+ */
+function flag_webform_submissions_flag_definitions() {
+  return array(
+    'submission' => array(
+      'title' => t('Webform submissions'),
+      'description' => t('Webform submissions are used to collect informatino.'),
+      'handler' => 'flag_webform_submissions',
+    ),
+  );
+}
+
+/**
+ * Implementation of template_preprocess_page().
+ */
+function flag_webform_submissions_preprocess_page(&$variables) {
+  if (in_array('page-node', $variables['template_files'])) {
+    $node = explode('-', $variables['template_files'][1]);
+    $nid = $node[2];
+  }
+
+  if (in_array('page-node-submission', $variables['template_files'])) {
+    $submission = explode('-', $variables['template_files'][3]);
+    $sid = $submission[3];
+  }
+
+  // submission page
+  if (is_numeric($nid) && is_numeric($sid)) {
+    $variables = theme('flag_webform_submissions_flags', $nid, $sid, $variables);
+  }
+
+  // submission list page
+  if (in_array('page-node-webform-results', $variables['template_files'])) {
+    $variables = theme('flag_webform_submissions_flags', $nid, 'list', $variables);
+  }
+
+}
+
+/**
+ * Implementation of hook_theme()
+ */
+function flag_webform_submissions_theme() {
+  return array(
+    'flag_webform_submissions_flags' => array(
+      'arguments' => array('nid' => NULL, 'sid' => NULL, 'variables' => NULL),
+    ),
+  );
+}
+
+/**
+ * Theme function to inject flag links into taxonony/term/% pages.
+ */
+function theme_flag_webform_submissions_flags($nid, $sid, $variables) {
+  $links = array();
+  foreach (flag_get_flags('submission') as $flag) {
+    if ($flag->show_on_submissions_page != 0) {
+      // have to join the nid and sid together due to the flag cacheing mechanism
+      $links[] = flag_create_link($flag->name, $sid . '-' . $nid);
+    }
+  }
+  $variables['content'] = join('', $links) . $variables['content'];
+
+  return $variables;
+}
+
+function flag_webform_submissions_webform_results_submissions($node, $user_filter, $pager_count) {
+  global $user;
+
+  // this function needs webform.submissions.inc.
+  module_load_include('inc', 'webform', 'includes/webform.submissions');
+
+  if (isset($_GET['results']) && is_numeric($_GET['results'])) {
+    $pager_count = $_GET['results'];
+  }
+
+  $header = theme('webform_results_submissions_header', $node);
+  if ($user_filter) {
+    if ($user->uid) {
+      drupal_set_title(t('Submissions for %user', array('%user' => $user->name)));
+    }
+    else {
+      drupal_set_title(t('Your submissions'));
+      webform_disable_page_cache();
+    }
+    webform_set_breadcrumb($node);
+    $submissions = webform_get_submissions(array('nid' => $node->nid, 'uid' => $user->uid), $header, $pager_count);
+    $count = webform_get_submission_count($node->nid, $user->uid);
+  }
+  else {
+    $submissions = webform_get_submissions($node->nid, $header, $pager_count);
+    $count = webform_get_submission_count($node->nid);
+  }
+
+  $operation_column = end($header);
+  $operation_total = $operation_column['colspan'];
+
+  $rows = array();
+  $flags_used = array();
+  foreach ($submissions as $sid => $submission) {
+    $row = array(
+      $submission->is_draft ? t('@sid (draft)', array('@sid' => $sid)) : $sid,
+      format_date($submission->submitted, 'small'),
+    );
+    if (webform_results_access($node, $user)) {
+      $row[] = theme('username', $submission);
+      $row[] = $submission->remote_addr;
+    }
+    $row[] = l(t('View'), "node/$node->nid/submission/$sid");
+    $operation_count = 1;
+    if (module_exists('print_pdf') && user_access('access PDF version')) {
+      $row[] = l(t('PDF'), "printpdf/$node->nid/submission/$sid", array('query' => drupal_get_destination()));
+      $operation_count++;
+    }
+    if (module_exists('print') && user_access('access print')) {
+      $row[] = l(t('Print'), "print/$node->nid/submission/$sid");
+      $operation_count++;
+    }
+    if (webform_submission_access($node, $submission, 'edit', $user)) {
+      $row[] = l(t('Edit'), "node/$node->nid/submission/$sid/edit", array('query' => drupal_get_destination()));
+      $operation_count++;
+    }
+    if (webform_submission_access($node, $submission, 'delete', $user)) {
+      $row[] = l(t('Delete'), "node/$node->nid/submission/$sid/delete", array('query' => drupal_get_destination()));
+      $operation_count++;
+    }
+    if ($operation_count < $operation_total) {
+      $row[count($row) - 1] = array('data' => $row[count($row) - 1], 'colspan' => $operation_total - $operation_count + 1);
+    }
+    // generate flag links
+    foreach (flag_get_flags('submission') as $flag) {
+      // have to join the nid and sid together due to the flag cacheing mechanism
+      $flag_code = flag_create_link($flag->name, $sid . '-' . $node->nid);
+      $row[] = $flag_code;
+      if ($flag_code) $flags_used[$flag->name] = true;
+    }
+
+    $rows[] = $row;
+  }
+
+  // Add flag headers in
+  foreach (flag_get_flags('submission') as $flag) {
+    // have to join the nid and sid together due to the flag cacheing mechanism
+    if (array_key_exists($flag->name, $flags_used)) $header[] = array('data' => $flag->title, 'field' => $flag->name);
+  }
+  $element['#theme'] = 'webform_results_submissions';
+  $element['#node'] = $node;
+  $element['#submissions'] = $submissions;
+  $element['#total_count'] = $count;
+  $element['#pager_count'] = $pager_count;
+
+  $element['table']['#theme'] = 'table';
+  $element['table']['#header'] = $header;
+  $element['table']['#rows'] = $rows;
+  $element['table']['#operation_total'] = $operation_total;
+
+  return drupal_render($element);
+}
