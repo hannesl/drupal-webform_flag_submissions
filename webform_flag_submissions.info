@@ -1,5 +1,4 @@
-; $Id $
-name = Flag Webform Submissions
+name = Webform Flag Submissions
 description = Allows users to flag Webform submissions.
 package = Flags
 core = 6.x

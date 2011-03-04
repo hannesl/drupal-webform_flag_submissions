@@ -9,7 +9,7 @@
 /**
  * Implements a term flag.
  */
-class flag_webform_submissions extends flag_flag {
+class webform_flag_submissions extends flag_flag {
   function options() {
     $options = parent::options();
     $options += array(
