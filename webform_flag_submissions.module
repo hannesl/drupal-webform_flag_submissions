@@ -2,8 +2,8 @@
 // $Id: flag_terms.module,v 1.2 2009/11/19 13:09:02 tayzlor Exp $
 /**
  * @file
- * Flag Terms.
- * Written by Graham Taylor.
+ * Webform Flag Submissions.
+ * Written by Lucas Riutzel.
  */
 
 module_load_include('inc', 'webform_flag_submissions', 'webform_flag_submissions');
