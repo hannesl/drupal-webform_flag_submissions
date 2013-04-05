@@ -1,19 +1,13 @@
 <?php
-// $Id: flag_terms.inc,v 1.3 2009/11/19 13:09:02 tayzlor Exp $
-/**
- * @file
- * flag_terms.inc
- * Written by Graham Taylor.
- */
  
 /**
- * Implements a term flag.
+ * Implements a webform flag submission flag.
  */
 class webform_flag_submissions extends flag_flag {
   function options() {
     $options = parent::options();
     $options += array(
-      'show_on_submissions_page' => TRUE,
+      'webform_flag_submissions_show_on_submissions_page' => TRUE,
     );
     return $options;
   }
@@ -23,32 +17,40 @@ class webform_flag_submissions extends flag_flag {
 
     $options = array();
 
-    // get webform nodes - this works GREAT! woot woot
+    // Get webform nodes types.
     $webform_types = webform_variable_get('webform_node_types');
 
-    $nodes = array();
-    if ($webform_types) {
-      $placeholders = implode(', ', array_fill(0, count($webform_types), "'%s'"));
-      $result = db_query(db_rewrite_sql("SELECT n.*, r.* FROM {node} n INNER JOIN {node_revisions} r ON n.vid = r.vid WHERE n.type IN ($placeholders)", 'n', 'nid', $webform_types), $webform_types);
-      while ($node = db_fetch_object($result)) {
-        $options[$node->nid] = $node->title;
+    // Lookup all webform nodes, and add them to the options.
+    if ($webform_types && !empty($webform_types)) {
+      $nodes = db_select('node', 'n')
+        ->fields('n', array('nid', 'title'))
+        ->condition('type', $webform_types, 'IN')
+        ->execute()
+        ->fetchAll();
+      if (sizeof($nodes) != 0) {
+        foreach($nodes as $node) {
+          $options[$node->nid] = $node->title;
+        }
+      }
+      else {
+        drupal_set_message(t('There are no webform nodes created!'), 'warning');
       }
     }
 
     $form['access']['types'] = array(
       '#type' => 'checkboxes',
-      '#title' => t('The webforms whose submissions will be flaggable'),
+      '#title' => t('Webforms with Flaggable Submissions'),
       '#options' => $options,
       '#default_value' => $this->types,
       '#required' => TRUE,
       '#weight' => 10,
       '#access' => empty($flag->locked['types']),
     );
-    $form['display']['show_on_submissions_page'] = array(
+    $form['display']['webform_flag_submissions_show_on_submissions_page'] = array(
       '#type' => 'checkbox',
-      '#title' => t('Display link on q=node/x/webform-results pages'),
-      '#default_value' => $this->show_on_submissions_page,
-      '#access' => empty($this->locked['show_on_submissions_page']),
+      '#title' => t('Display link on Webform Results Pages (e.g. node/%nid/webform-results)'),
+      '#default_value' => $this->webform_flag_submissions_show_on_submissions_page,
+      '#access' => empty($this->locked['webform_flag_submissions_show_on_submissions_page']),
     );
   }
 

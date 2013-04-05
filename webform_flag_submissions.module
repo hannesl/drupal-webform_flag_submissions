@@ -1,21 +1,18 @@
 <?php
-// $Id: flag_terms.module,v 1.2 2009/11/19 13:09:02 tayzlor Exp $
+
 /**
  * @file
  * Webform Flag Submissions.
- * Written by Lucas Riutzel.
  */
-
-module_load_include('inc', 'webform_flag_submissions', 'webform_flag_submissions');
 
 /**
  * Implementation of hook_flag_definitions().
  */
 function webform_flag_submissions_flag_definitions() {
   return array(
-    'submission' => array(
+    'webform_submission' => array(
       'title' => t('Webform submissions'),
-      'description' => t('Webform submissions are used to collect informatino.'),
+      'description' => t('Webform submissions are used to collect information.'),
       'handler' => 'webform_flag_submissions',
     ),
   );
@@ -25,26 +22,26 @@ function webform_flag_submissions_flag_definitions() {
  * Implementation of template_preprocess_page().
  */
 function webform_flag_submissions_preprocess_page(&$variables) {
-  if (in_array('page-node', $variables['template_files'])) {
-    $node = explode('-', $variables['template_files'][1]);
-    $nid = $node[2];
+  
+  if (isset($variables['theme_hook_suggestions'])) {
+    // Submission page.
+    if (in_array('page__node__submission', $variables['theme_hook_suggestions'])) {
+      $variables['nid'] = arg(1);
+      $variables['sid'] = arg(3);
+      $variables = theme('webform_flag_submissions_flags', $variables);
+    }
   }
-
-  if (in_array('page-node-submission', $variables['template_files'])) {
-    $submission = explode('-', $variables['template_files'][3]);
-    $sid = $submission[3];
-  }
+  //dpm($variables);
 
   // submission page
-  if (is_numeric($nid) && is_numeric($sid)) {
+  /*if (is_numeric($nid) && is_numeric($sid)) {
     $variables = theme('webform_flag_submissions_flags', $nid, $sid, $variables);
   }
 
   // submission list page
   if (in_array('page-node-webform-results', $variables['template_files'])) {
     $variables = theme('webform_flag_submissions_flags', $nid, 'list', $variables);
-  }
-
+  }*/
 }
 
 /**
@@ -61,20 +58,22 @@ function webform_flag_submissions_theme() {
 /**
  * Theme function to inject flag links into node/%/submission/% pages.
  */
-function theme_webform_flag_submissions_flags($nid, $sid, $variables) {
+function theme_webform_flag_submissions_flags($variables) {
   $links = array();
-  foreach (flag_get_flags('submission') as $flag) {
-    if ($flag->show_on_submissions_page != 0) {
-      // have to join the nid and sid together due to the flag cacheing mechanism
-      $links[] = flag_create_link($flag->name, $sid . '-' . $nid);
+  $flags = flag_get_flags('webform_submission');
+  foreach ($flags as $flag) {
+    if ($flag->webform_flag_submissions_show_on_submissions_page != 0) {
+      // Join the nid and sid together for the flag caching mechanism.
+      $links[] = flag_create_link($flag->name, $variables['sid'] . '-' . $variables['nid']);
     }
   }
-  $variables['content'] = join('', $links) . $variables['content'];
-
+  $variables['page']['content']['system_main']['#submission_content'] =
+    join('', $links) .
+    $variables['page']['content']['system_main']['#submission_content'];
   return $variables;
 }
 
-function webform_flag_submissions_preprocess_webform_results_submissions(&$vars) {
+/*function webform_flag_submissions_preprocess_webform_results_submissions(&$vars) {
   // generate flag links
   $flags_used = array();
   foreach (flag_get_flags('submission') as $flag) {
@@ -93,4 +92,4 @@ function webform_flag_submissions_preprocess_webform_results_submissions(&$vars)
     if (array_key_exists($flag->name, $flags_used)) 
       $vars['table']['#header'][] = array('data' => $flag->title, 'field' => $flag->name);
   }
-}
+}*/

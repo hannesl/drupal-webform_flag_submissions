@@ -1,6 +1,7 @@
 name = Webform Flag Submissions
 description = Allows users to flag Webform submissions.
-package = Flags
-core = 6.x
+core = 7.x
+package = Webform
 dependencies[] = webform
 dependencies[] = flag
+files[] = webform_flag_submissions.inc
