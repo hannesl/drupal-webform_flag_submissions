@@ -6,9 +6,9 @@ This is a fork of https://drupal.org/sandbox/Jackinloadup/1081630
 
 ## Requirements
 
-Drupal 7
-Webform 7.x-3.x
-Flag 7.x-3.z
+* Drupal 7
+* Webform 7.x-3.x
+* Flag 7.x-3.z
 
 ## References
 
