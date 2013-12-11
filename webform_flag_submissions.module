@@ -6,9 +6,9 @@
  */
 
 /**
- * Implementation of hook_flag_definitions().
+ * Implementation of hook_flag_type_info().
  */
-function webform_flag_submissions_flag_definitions() {
+function webform_flag_submissions_flag_type_info() {
   return array(
     'webform_submission' => array(
       'title' => t('Webform submissions'),
@@ -18,78 +18,39 @@ function webform_flag_submissions_flag_definitions() {
   );
 }
 
-/**
- * Implementation of template_preprocess_page().
- */
-function webform_flag_submissions_preprocess_page(&$variables) {
-  
-  if (isset($variables['theme_hook_suggestions'])) {
-    // Submission page.
-    if (in_array('page__node__submission', $variables['theme_hook_suggestions'])) {
-      $variables['nid'] = arg(1);
-      $variables['sid'] = arg(3);
-      $variables = theme('webform_flag_submissions_flags', $variables);
-    }
-  }
-  //dpm($variables);
-
-  // submission page
-  /*if (is_numeric($nid) && is_numeric($sid)) {
-    $variables = theme('webform_flag_submissions_flags', $nid, $sid, $variables);
-  }
-
-  // submission list page
-  if (in_array('page-node-webform-results', $variables['template_files'])) {
-    $variables = theme('webform_flag_submissions_flags', $nid, 'list', $variables);
-  }*/
-}
-
-/**
- * Implementation of hook_theme()
- */
-function webform_flag_submissions_theme() {
-  return array(
-    'webform_flag_submissions_flags' => array(
-      'arguments' => array('nid' => NULL, 'sid' => NULL, 'variables' => NULL),
-    ),
-  );
-}
-
-/**
- * Theme function to inject flag links into node/%/submission/% pages.
- */
-function theme_webform_flag_submissions_flags($variables) {
+function webform_flag_submissions_preprocess_webform_submission_page(&$vars) {
+  // Create links for any flags that are enabled for this webform.
   $links = array();
   $flags = flag_get_flags('webform_submission');
   foreach ($flags as $flag) {
-    if ($flag->webform_flag_submissions_show_on_submissions_page != 0) {
-      // Join the nid and sid together for the flag caching mechanism.
-      $links[] = flag_create_link($flag->name, $variables['sid'] . '-' . $variables['nid']);
+    if (in_array($vars['node']->nid, $flag->types) && $flag->webform_flag_submissions_show_on_submissions_page != 0) {
+      $links[] = '<li>' . flag_create_link($flag->name, arg(3)) . '</li>';
     }
   }
-  $variables['page']['content']['system_main']['#submission_content'] =
-    join('', $links) .
-    $variables['page']['content']['system_main']['#submission_content'];
-  return $variables;
+
+  // Insert the links last in the submission action links.
+  if (!empty($links)) {
+    $vars['submission_actions'] = str_replace('</ul>', join('', $links) . '</ul>', $vars['submission_actions']);
+  }
 }
 
-/*function webform_flag_submissions_preprocess_webform_results_submissions(&$vars) {
-  // generate flag links
+function webform_flag_submissions_preprocess_webform_results_submissions(&$vars) {
+  // Create links for any flags that are enabled for this webform.
+  $flags = flag_get_flags('webform_submission');
   $flags_used = array();
-  foreach (flag_get_flags('submission') as $flag) {
-    foreach($vars['table']['#rows'] as $id => $row) {
-      // have to join the nid and sid together due to the flag cacheing mechanism
-      $flag_code = flag_create_link($flag->name, $row[0] . '-' . $vars['node']->nid);
-      $vars['table']['#rows'][$id][] = $flag_code;
+  foreach ($flags as $flag) {
+    if (in_array($vars['node']->nid, $flag->types) && $flag->webform_flag_submissions_show_on_submissions_page != 0) {
+      foreach($vars['table']['#rows'] as $id => $row) {
+        $vars['table']['#rows'][$id][] = flag_create_link($flag->name, $row[0]);
+      }
 
-      // keep track of which flags were used so we can build headers
-      if ($flag_code) $flags_used[$flag->name] = true;
+      // Keep track of which flags were used so we can build set the right colspan.
+      $flags_used[$flag->name] = true;
     }
   }
   
-  // Add flag headers in
-  foreach (flag_get_flags('submission') as $flag) {
-    if (array_key_exists($flag->name, $flags_used)) 
-      $vars['table']['#header'][] = array('data' => $flag->title, 'field' => $flag->name);
-  }
-}*/
+  // Add colspan to the actions table header.
+  $last = array_pop($vars['table']['#header']);
+  $last['colspan'] += count($flags_used);
+  array_push($vars['table']['#header'], $last);
+}
