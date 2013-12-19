@@ -24,7 +24,7 @@ function webform_flag_submissions_preprocess_webform_submission_page(&$vars) {
   $flags = flag_get_flags('webform_submission');
   foreach ($flags as $flag) {
     if (in_array($vars['node']->nid, $flag->types) && $flag->webform_flag_submissions_show_on_submissions_page != 0) {
-      $links[] = '<li>' . flag_create_link($flag->name, arg(3)) . '</li>';
+      $links[] = '<li>' . flag_create_link($flag->name, webform_flag_submissions_get_cantor_pair($vars['node']->nid, arg(3))) . '</li>';
     }
   }
 
@@ -41,7 +41,7 @@ function webform_flag_submissions_preprocess_webform_results_submissions(&$vars)
   foreach ($flags as $flag) {
     if (in_array($vars['node']->nid, $flag->types) && $flag->webform_flag_submissions_show_on_submissions_page != 0) {
       foreach($vars['table']['#rows'] as $id => $row) {
-        $vars['table']['#rows'][$id][] = flag_create_link($flag->name, $row[0]);
+        $vars['table']['#rows'][$id][] = flag_create_link($flag->name, webform_flag_submissions_get_cantor_pair($vars['node']->nid, $row[0]));
       }
 
       // Keep track of which flags were used so we can build set the right colspan.
@@ -53,4 +53,25 @@ function webform_flag_submissions_preprocess_webform_results_submissions(&$vars)
   $last = array_pop($vars['table']['#header']);
   $last['colspan'] += count($flags_used);
   array_push($vars['table']['#header'], $last);
+}
+
+/**
+ * Calculate a unique integer based on two integers (cantor pairing).
+ *
+ * @see http://stevegardner.net/2012/07/09/javascript-cantor-pairing-function-and-reverse-function/
+ */
+function webform_flag_submissions_get_cantor_pair($x, $y) {
+  return (($x + $y) * ($x + $y + 1)) / 2 + $y;
+}
+ 
+/**
+ * Return the source integers from a cantor pair integer.
+ *
+ * @see http://stevegardner.net/2012/07/09/javascript-cantor-pairing-function-and-reverse-function/
+ */
+function webform_flag_submissions_reverse_cantor_pair($z) {
+  $t = floor((-1 + sqrt(1 + 8 * $z))/2);
+  $x = $t * ($t + 3) / 2 - $z;
+  $y = $z - $t * ($t + 1) / 2;
+  return array($x, $y);
 }

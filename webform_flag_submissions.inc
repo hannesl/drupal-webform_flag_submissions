@@ -55,8 +55,10 @@ class webform_flag_submissions extends flag_flag {
   }
 
   function _load_entity($entity_id) {
+    // The entity ID is a combined value of the node ID and the submission ID.
+    list($nid, $sid) = webform_flag_submissions_reverse_cantor_pair($entity_id);
     module_load_include('inc', 'webform', 'includes/webform.submissions');
-    $submissions = webform_get_submissions(array('sid' => $entity_id));
+    $submissions = webform_get_submissions(array('sid' => $sid, 'nid' => $nid));
     return empty($submissions) ? null : reset($submissions);
   }
 
@@ -68,7 +70,8 @@ class webform_flag_submissions extends flag_flag {
   }
 
   function get_entity_id($submission) {
-    return $submission->sid;
+    // The entity ID is a combined value of the node ID and the submission ID.
+    return webform_flag_submissions_get_cantor_pair($submission->nid, $submission->sid);
   }
 
   function get_labels_token_types() {
@@ -86,7 +89,7 @@ class webform_flag_submissions extends flag_flag {
     $flag_action = parent::get_flag_action($entity_id);
     $submission = $this->fetch_content($entity_id);
     $flag_action->content_title = $submission->title;
-    $flag_action->content_url = _flag_url('node/' . $submission->nid . '/webform-results/' . $submission->vid . '/flag');
+    $flag_action->content_url = _flag_url('node/' . $submission->nid . '/webform-results/' . $submission->sid . '/flag');
     return $flag_action;
   }
 
